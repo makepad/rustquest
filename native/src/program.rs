@@ -19,7 +19,7 @@ const VERTEX_SHADER: &'static str = r#"
     out vec3 vColor;
 
     void main() {
-        gl_Position = uProjectionMatrix * (uViewMatrix * (uModelMatrix * vec4(aPosition, 1.0)));
+        gl_Position = uProjectionMatrix * (uViewMatrix * (uModelMatrix * vec4(0.1 * aPosition, 1.0)));
         vColor = aColor;
     }
 "#;
@@ -27,9 +27,9 @@ const VERTEX_SHADER: &'static str = r#"
 const FRAGMENT_SHADER: &'static str = r#"
     #version 300 es
 
-    in lowp vec3 vColor;
+    in highp vec3 vColor;
 
-    out lowp vec4 fragColor;
+    out highp vec4 fragColor;
 
     void main() {
         fragColor = vec4(vColor, 1.0);
@@ -51,8 +51,8 @@ impl Program {
 
             logi!("link program");
             let program = libGLESv3_sys::glCreateProgram();
-            libGLESv3_sys::glAttachShader(program, fragment_shader);
             libGLESv3_sys::glAttachShader(program, vertex_shader);
+            libGLESv3_sys::glAttachShader(program, fragment_shader);
             let attrib_names = ["aPosition", "aColor"];
             for (index, name) in attrib_names.iter().cloned().enumerate() {
                 libGLESv3_sys::glBindAttribLocation(
@@ -119,10 +119,10 @@ impl Drop for Program {
             libGLESv3_sys::glDeleteProgram(self.program);
 
             logi!("delete fragment shader");
-            libGLESv3_sys::glDeleteProgram(self.fragment_shader);
+            libGLESv3_sys::glDeleteShader(self.fragment_shader);
 
             logi!("delete vertex shader");
-            libGLESv3_sys::glDeleteProgram(self.vertex_shader);
+            libGLESv3_sys::glDeleteShader(self.vertex_shader);
         }
     }
 }
@@ -132,12 +132,7 @@ unsafe fn compile_shader(type_: GLenum, string: &str) -> GLuint {
     let shader = libGLESv3_sys::glCreateShader(type_);
     let string = CString::new(string).unwrap();
     let strings = [string.as_ptr()];
-    libGLESv3_sys::glShaderSource(
-        shader,
-        1,
-        strings.as_ptr(),
-        ptr::null_mut(),
-    );
+    libGLESv3_sys::glShaderSource(shader, 1, strings.as_ptr(), ptr::null_mut());
     libGLESv3_sys::glCompileShader(shader);
     let mut status = 0;
     libGLESv3_sys::glGetShaderiv(shader, GL_COMPILE_STATUS, &mut status);

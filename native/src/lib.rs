@@ -5,12 +5,14 @@ mod app_thread;
 mod egl;
 mod geometry;
 mod program;
+mod swap_chain;
 
 use crate::app::App;
 use crate::app_thread::AppThread;
 use crate::egl::EGL;
 use crate::geometry::Geometry;
 use crate::program::Program;
+use crate::swap_chain::SwapChain;
 use jni::sys::{jlong, jobject, JNIEnv};
 use std::panic;
 

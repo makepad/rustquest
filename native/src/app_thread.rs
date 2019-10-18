@@ -3,7 +3,7 @@ use jni::sys::{jobject, JNIEnv, JavaVM};
 use libandroid_sys::ANativeWindow;
 use std::ptr;
 use std::sync::mpsc;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{Sender, TryRecvError};
 use std::thread;
 use std::thread::JoinHandle;
 
@@ -33,30 +33,34 @@ impl AppThread {
                 let mut app = None;
                 logi!("entering event loop");
                 loop {
-                    match receiver.recv().unwrap() {
-                        Message::OnCreate(vm, activity) => {
-                            app = Some(App::new(vm, activity));
-                        }
-                        Message::OnStart => {}
-                        Message::OnResume => {
-                            app.as_mut().unwrap().set_resumed(true);
-                        }
-                        Message::OnPause => {
-                            app.as_mut().unwrap().set_resumed(false);
-                        }
-                        Message::OnStop => {}
-                        Message::OnDestroy => {
-                            break;
-                        }
-                        Message::SurfaceCreated(window) => {
-                            app.as_mut().unwrap().set_window(window);
-                        }
-                        Message::SurfaceDestroyed => {
-                            app.as_mut().unwrap().set_window(ptr::null_mut());
-                        }
+                    match receiver.try_recv() {
+                        Ok(message) => match message {
+                            Message::OnCreate(vm, activity) => {
+                                app = Some(App::new(vm, activity));
+                            }
+                            Message::OnStart => {}
+                            Message::OnResume => {
+                                app.as_mut().unwrap().set_resumed(true);
+                            }
+                            Message::OnPause => {
+                                app.as_mut().unwrap().set_resumed(false);
+                            }
+                            Message::OnStop => {}
+                            Message::OnDestroy => {
+                                break;
+                            }
+                            Message::SurfaceCreated(window) => {
+                                app.as_mut().unwrap().set_window(window);
+                            }
+                            Message::SurfaceDestroyed => {
+                                app.as_mut().unwrap().set_window(ptr::null_mut());
+                            }
+                        },
+                        Err(TryRecvError::Empty) => {},
+                        Err(TryRecvError::Disconnected) => panic!(),
                     }
 
-                    app.as_mut().unwrap().render_frame(); 
+                    app.as_mut().unwrap().render_frame();
                 }
                 logi!("leaving event loop");
             })),

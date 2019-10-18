@@ -124,9 +124,7 @@ impl EGL {
                         EGL_SAMPLES as EGLint,
                         0,
                     ];
-                    if !attribs
-                    .chunks(2)
-                    .all(|attrib| {
+                    if !attribs.chunks(2).all(|attrib| {
                         let mut value = 0;
                         if libEGL_sys::eglGetConfigAttrib(display, config, attrib[0], &mut value)
                             == EGL_FALSE

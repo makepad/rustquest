@@ -1,5 +1,5 @@
 use libGLESv3_sys::{
-    GLboolean, GLenum, GLint, GLsizei, GLsizeiptr, GLubyte, GLuint, GLvoid, GL_ARRAY_BUFFER,
+    GLboolean, GLenum, GLint, GLsizei, GLsizeiptr, GLushort, GLuint, GLvoid, GL_ARRAY_BUFFER,
     GL_ELEMENT_ARRAY_BUFFER, GL_FALSE, GL_FLOAT, GL_STATIC_DRAW,
 };
 use std::mem;
@@ -39,7 +39,7 @@ const VERTICES: &'static [Vertex] = &[
     },
 ];
 
-const INDICES: &'static [GLubyte] = &[
+const INDICES: &'static [GLushort] = &[
     0, 2, 1, 2, 0, 3, 4, 6, 5, 6, 4, 7, 2, 6, 7, 7, 1, 2, 0, 4, 5, 5, 3, 0, 3, 5, 6, 6, 2, 3, 0, 1,
     7, 7, 4, 0,
 ];
@@ -71,7 +71,7 @@ impl Geometry {
             libGLESv3_sys::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
             libGLESv3_sys::glBufferData(
                 GL_ELEMENT_ARRAY_BUFFER,
-                (INDICES.len() * mem::size_of::<GLubyte>()) as GLsizeiptr,
+                (INDICES.len() * mem::size_of::<GLushort>()) as GLsizeiptr,
                 INDICES.as_ptr() as *const _,
                 GL_STATIC_DRAW,
             );
@@ -89,19 +89,18 @@ impl Geometry {
                     size: 3,
                     type_: GL_FLOAT,
                     normalized: GL_FALSE as GLboolean,
-                    stride: mem::size_of::<Vertex> as GLsizei,
+                    stride: 24,
                     pointer: 0 as *mut GLvoid,
                 },
                 AttribPointer {
                     size: 3,
                     type_: GL_FLOAT,
                     normalized: GL_FALSE as GLboolean,
-                    stride: mem::size_of::<Vertex> as GLsizei,
-                    pointer: 16 as *mut GLvoid,
+                    stride: 24,
+                    pointer: 12 as *mut GLvoid,
                 },
             ];
             for (index, attrib_pointer) in attrib_pointers.iter().enumerate() {
-                libGLESv3_sys::glEnableVertexAttribArray(index as GLuint);
                 libGLESv3_sys::glVertexAttribPointer(
                     index as GLuint,
                     attrib_pointer.size,
@@ -110,6 +109,7 @@ impl Geometry {
                     attrib_pointer.stride,
                     attrib_pointer.pointer,
                 );
+                libGLESv3_sys::glEnableVertexAttribArray(index as GLuint);
             }
             libGLESv3_sys::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
             libGLESv3_sys::glBindVertexArray(0);
@@ -120,6 +120,14 @@ impl Geometry {
                 vertex_array,
             }
         }
+    }
+
+    pub fn count(&self) -> GLsizei {
+        INDICES.len() as GLsizei
+    }
+
+    pub fn vertex_array(&self) -> GLuint {
+        self.vertex_array
     }
 }
 
@@ -146,6 +154,7 @@ struct AttribPointer {
     pointer: *const GLvoid,
 }
 
+#[repr(C)]
 struct Vertex {
     position: [f32; 3],
     color: [f32; 3],
