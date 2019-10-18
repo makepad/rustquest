@@ -1,4 +1,4 @@
-use crate::{EGL, Program};
+use crate::{EGL, Geometry, Program};
 use jni::sys::{jobject, JavaVM};
 use libandroid_sys::ANativeWindow;
 use libvrapi_sys::{
@@ -14,6 +14,7 @@ pub struct App {
     java: ovrJava,
     egl: EGL,
     program: Program,
+    geometry: Geometry,
     resumed: bool,
     window: *mut ANativeWindow,
     vr: *mut ovrMobile,
@@ -47,6 +48,7 @@ impl App {
             java,
             egl: EGL::new(),
             program: Program::new(),
+            geometry: Geometry::new(),
             resumed: false,
             window: ptr::null_mut(),
             vr: ptr::null_mut(),

@@ -3,11 +3,13 @@ mod log;
 mod app;
 mod app_thread;
 mod egl;
+mod geometry;
 mod program;
 
 use crate::app::App;
 use crate::app_thread::AppThread;
 use crate::egl::EGL;
+use crate::geometry::Geometry;
 use crate::program::Program;
 use jni::sys::{jlong, jobject, JNIEnv};
 use std::panic;
