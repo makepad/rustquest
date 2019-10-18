@@ -3,10 +3,12 @@ mod log;
 mod app;
 mod app_thread;
 mod egl;
+mod program;
 
 use crate::app::App;
 use crate::app_thread::AppThread;
 use crate::egl::EGL;
+use crate::program::Program;
 use jni::sys::{jlong, jobject, JNIEnv};
 use std::panic;
 
@@ -115,18 +117,6 @@ pub unsafe extern "C" fn Java_com_makepad_rustquest_JNI_surfaceDestroyed(
 
 fn set_panic_hook() {
     panic::set_hook(Box::new(|panic_info| {
-        let location = panic_info.location().unwrap();
-        let file = location.file();
-        let line = location.line();
-        if let Some(string) = panic_info.payload().downcast_ref::<&str>() {
-            loge!(
-                "panic occurred in file {} on line {}: {}",
-                file,
-                line,
-                string
-            );
-        } else {
-            loge!("panic occurred in file {} on line {}", file, line);
-        }
+        loge!("{}", panic_info.to_string());
     }));
 }

@@ -1,4 +1,4 @@
-use crate::EGL;
+use crate::{EGL, Program};
 use jni::sys::{jobject, JavaVM};
 use libandroid_sys::ANativeWindow;
 use libvrapi_sys::{
@@ -13,6 +13,7 @@ pub struct App {
     vm: *mut JavaVM,
     java: ovrJava,
     egl: EGL,
+    program: Program,
     resumed: bool,
     window: *mut ANativeWindow,
     vr: *mut ovrMobile,
@@ -45,6 +46,7 @@ impl App {
             vm,
             java,
             egl: EGL::new(),
+            program: Program::new(),
             resumed: false,
             window: ptr::null_mut(),
             vr: ptr::null_mut(),
@@ -61,7 +63,13 @@ impl App {
         self.update_vr_mode();
     }
 
-    pub fn update_vr_mode(&mut self) {
+    pub fn render_frame(&mut self) {
+        if self.vr.is_null() {
+            return;
+        }
+    }
+
+    fn update_vr_mode(&mut self) {
         if self.resumed && !self.window.is_null() {
             if self.vr.is_null() {
                 unsafe {

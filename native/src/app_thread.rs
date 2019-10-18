@@ -55,6 +55,8 @@ impl AppThread {
                             app.as_mut().unwrap().set_window(ptr::null_mut());
                         }
                     }
+
+                    app.as_mut().unwrap().render_frame(); 
                 }
                 logi!("leaving event loop");
             })),
