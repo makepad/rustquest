@@ -8,5 +8,8 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
+libandroid-sys = { path = "./libandroid-sys" }
+libEGL-sys = { path = "./libEGL-sys" }
 liblog-sys = { path = "./liblog-sys" }
+libvrapi-sys = { path = "./libvrapi-sys" }
 jni = { default-features = false, version = "*" }

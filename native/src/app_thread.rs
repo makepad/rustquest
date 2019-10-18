@@ -1,4 +1,7 @@
-use jni::sys::{jobject, JNIEnv};
+use crate::App;
+use jni::sys::{jobject, JNIEnv, JavaVM};
+use libandroid_sys::ANativeWindow;
+use std::ptr;
 use std::sync::mpsc;
 use std::sync::mpsc::Sender;
 use std::thread;
@@ -9,32 +12,53 @@ pub struct AppThread {
     activity: jobject,
     sender: Sender<Message>,
     thread: Option<JoinHandle<()>>,
+    window: *mut ANativeWindow,
 }
 
 impl AppThread {
     pub fn new(env: *mut JNIEnv, activity: jobject) -> AppThread {
+        let vm = unsafe {
+            let mut vm: *mut JavaVM = ptr::null_mut();
+            ((**env).GetJavaVM.unwrap())(env, &mut vm);
+            vm
+        };
         let activity = unsafe { ((**env).NewGlobalRef.unwrap())(env, activity) };
         let (sender, receiver) = mpsc::channel();
-        let thread = Some(thread::spawn(move || {
-            logi!("entering event loop");
-            loop {
-                match receiver.recv().unwrap() {
-                    Message::OnStart => {}
-                    Message::OnResume => {}
-                    Message::OnPause => {}
-                    Message::OnStop => {}
-                    Message::OnDestroy => {
-                        break;
-                    }
-                }
-            }
-            logi!("leaving event loop");
-        }));
+        sender.send(Message::OnCreate(vm, activity)).unwrap();
         AppThread {
             env,
             activity,
             sender,
-            thread,
+            thread: Some(thread::spawn(move || {
+                let mut app = None;
+                logi!("entering event loop");
+                loop {
+                    match receiver.recv().unwrap() {
+                        Message::OnCreate(vm, activity) => {
+                            app = Some(App::new(vm, activity));
+                        }
+                        Message::OnStart => {}
+                        Message::OnResume => {
+                            app.as_mut().unwrap().set_resumed(true);
+                        }
+                        Message::OnPause => {
+                            app.as_mut().unwrap().set_resumed(false);
+                        }
+                        Message::OnStop => {}
+                        Message::OnDestroy => {
+                            break;
+                        }
+                        Message::SurfaceCreated(window) => {
+                            app.as_mut().unwrap().set_window(window);
+                        }
+                        Message::SurfaceDestroyed => {
+                            app.as_mut().unwrap().set_window(ptr::null_mut());
+                        }
+                    }
+                }
+                logi!("leaving event loop");
+            })),
+            window: ptr::null_mut(),
         }
     }
 
@@ -58,16 +82,42 @@ impl AppThread {
         self.sender.send(Message::OnDestroy).unwrap();
     }
 
-    pub fn surface_created(&mut self, _env: *mut JNIEnv, _surface: jobject) {
-        // TODO
+    pub fn surface_created(&mut self, env: *mut JNIEnv, surface: jobject) {
+        let window = unsafe { libandroid_sys::ANativeWindow_fromSurface(env as _, surface as _) };
+        self.window = window;
+        self.sender.send(Message::SurfaceCreated(window)).unwrap();
     }
 
-    pub fn surface_changed(&mut self, _env: *mut JNIEnv, _surface: jobject) {
-        // TODO
+    pub fn surface_changed(&mut self, env: *mut JNIEnv, surface: jobject) {
+        let window = unsafe { libandroid_sys::ANativeWindow_fromSurface(env as _, surface as _) };
+        if window != self.window {
+            if !self.window.is_null() {
+                unsafe {
+                    libandroid_sys::ANativeWindow_release(self.window);
+                }
+                self.window = ptr::null_mut();
+                self.sender.send(Message::SurfaceDestroyed).unwrap();
+            }
+
+            if !window.is_null() {
+                self.window = window;
+                self.sender.send(Message::SurfaceCreated(window)).unwrap();
+            }
+        } else {
+            if !window.is_null() {
+                unsafe {
+                    libandroid_sys::ANativeWindow_release(window);
+                }
+            }
+        }
     }
 
     pub fn surface_destroyed(&mut self) {
-        // TODO
+        unsafe {
+            libandroid_sys::ANativeWindow_release(self.window);
+        }
+        self.window = ptr::null_mut();
+        self.sender.send(Message::SurfaceDestroyed).unwrap();
     }
 }
 
@@ -79,9 +129,14 @@ impl Drop for AppThread {
 }
 
 enum Message {
+    OnCreate(*mut JavaVM, jobject),
     OnStart,
     OnResume,
     OnPause,
     OnStop,
     OnDestroy,
+    SurfaceCreated(*mut ANativeWindow),
+    SurfaceDestroyed,
 }
+
+unsafe impl Send for Message {}

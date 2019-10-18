@@ -1,8 +1,12 @@
 #[macro_use]
 mod log;
+mod app;
 mod app_thread;
+mod egl;
 
-use app_thread::AppThread;
+use crate::app::App;
+use crate::app_thread::AppThread;
+use crate::egl::EGL;
 use jni::sys::{jlong, jobject, JNIEnv};
 use std::panic;
 
