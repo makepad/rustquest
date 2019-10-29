@@ -24,17 +24,6 @@ pub unsafe fn vrapi_DefaultInitParms(java: *const ovrJava) -> ovrInitParms {
     parms
 }
 
-pub unsafe fn vrapi_DefaultModeParms(java: *const ovrJava) -> ovrModeParms {
-    let mut parms: ovrModeParms = mem::zeroed();
-
-    parms.Type = ovrStructureType__VRAPI_STRUCTURE_TYPE_MODE_PARMS;
-    parms.Flags |= ovrModeFlags__VRAPI_MODE_FLAG_ALLOW_POWER_SAVE;
-    parms.Flags |= ovrModeFlags__VRAPI_MODE_FLAG_RESET_WINDOW_FULLSCREEN;
-    parms.Java = *java;
-
-    parms
-}
-
 pub unsafe fn vrapi_DefaultLayerProjection2() -> ovrLayerProjection2 {
     let mut layer: ovrLayerProjection2 = mem::zeroed();
 
@@ -64,24 +53,15 @@ pub unsafe fn vrapi_DefaultLayerProjection2() -> ovrLayerProjection2 {
     layer
 }
 
-pub unsafe fn ovrMatrix4f_CreateProjectionFov(
-    fovDegreesX: f32,
-    fovDegreesY: f32,
-    offsetX: f32,
-    offsetY: f32,
-    nearZ: f32,
-    farZ: f32,
-) -> ovrMatrix4f {
-    let halfWidth = nearZ * f32::tan(fovDegreesX * (PI / 180.0 * 0.5));
-    let halfHeight = nearZ * f32::tan(fovDegreesY * (PI / 180.0 * 0.5));
+pub unsafe fn vrapi_DefaultModeParms(java: *const ovrJava) -> ovrModeParms {
+    let mut parms: ovrModeParms = mem::zeroed();
 
-    let minX = offsetX - halfWidth;
-    let maxX = offsetX + halfWidth;
+    parms.Type = ovrStructureType__VRAPI_STRUCTURE_TYPE_MODE_PARMS;
+    parms.Flags |= ovrModeFlags__VRAPI_MODE_FLAG_ALLOW_POWER_SAVE;
+    parms.Flags |= ovrModeFlags__VRAPI_MODE_FLAG_RESET_WINDOW_FULLSCREEN;
+    parms.Java = *java;
 
-    let minY = offsetY - halfHeight;
-    let maxY = offsetY + halfHeight;
-
-    ovrMatrix4f_CreateProjection(minX, maxX, minY, maxY, nearZ, farZ)
+    parms
 }
 
 pub unsafe fn ovrMatrix4f_CreateProjection(
@@ -141,6 +121,148 @@ pub unsafe fn ovrMatrix4f_CreateProjection(
     out
 }
 
+pub unsafe fn ovrMatrix4f_CreateProjectionFov(
+    fovDegreesX: f32,
+    fovDegreesY: f32,
+    offsetX: f32,
+    offsetY: f32,
+    nearZ: f32,
+    farZ: f32,
+) -> ovrMatrix4f {
+    let halfWidth = nearZ * f32::tan(fovDegreesX * (PI / 180.0 * 0.5));
+    let halfHeight = nearZ * f32::tan(fovDegreesY * (PI / 180.0 * 0.5));
+
+    let minX = offsetX - halfWidth;
+    let maxX = offsetX + halfWidth;
+
+    let minY = offsetY - halfHeight;
+    let maxY = offsetY + halfHeight;
+
+    ovrMatrix4f_CreateProjection(minX, maxX, minY, maxY, nearZ, farZ)
+}
+
+pub unsafe fn ovrMatrix4f_CreateTranslation(x: f32, y: f32, z: f32) -> ovrMatrix4f {
+    let mut out: ovrMatrix4f = mem::zeroed();
+    out.M[0][0] = 1.0;
+    out.M[0][1] = 0.0;
+    out.M[0][2] = 0.0;
+    out.M[0][3] = x;
+    out.M[1][0] = 0.0;
+    out.M[1][1] = 1.0;
+    out.M[1][2] = 0.0;
+    out.M[1][3] = y;
+    out.M[2][0] = 0.0;
+    out.M[2][1] = 0.0;
+    out.M[2][2] = 1.0;
+    out.M[2][3] = z;
+    out.M[3][0] = 0.0;
+    out.M[3][1] = 0.0;
+    out.M[3][2] = 0.0;
+    out.M[3][3] = 1.0;
+    out
+}
+
+pub unsafe fn ovrMatrix4f_CreateFromQuaternion(q: *const ovrQuatf) -> ovrMatrix4f {
+    let ww = (*q).w * (*q).w;
+    let xx = (*q).x * (*q).x;
+    let yy = (*q).y * (*q).y;
+    let zz = (*q).z * (*q).z;
+
+    let mut out = mem::zeroed::<ovrMatrix4f>();
+    out.M[0][0] = ww + xx - yy - zz;
+    out.M[0][1] = 2.0 * ((*q).x * (*q).y - (*q).w * (*q).z);
+    out.M[0][2] = 2.0 * ((*q).x * (*q).z + (*q).w * (*q).y);
+    out.M[0][3] = 0.0;
+
+    out.M[1][0] = 2.0 * ((*q).x * (*q).y + (*q).w * (*q).z);
+    out.M[1][1] = ww - xx + yy - zz;
+    out.M[1][2] = 2.0 * ((*q).y * (*q).z - (*q).w * (*q).x);
+    out.M[1][3] = 0.0;
+
+    out.M[2][0] = 2.0 * ((*q).x * (*q).z - (*q).w * (*q).y);
+    out.M[2][1] = 2.0 * ((*q).y * (*q).z + (*q).w * (*q).x);
+    out.M[2][2] = ww - xx - yy + zz;
+    out.M[2][3] = 0.0;
+
+    out.M[3][0] = 0.0;
+    out.M[3][1] = 0.0;
+    out.M[3][2] = 0.0;
+    out.M[3][3] = 1.0;
+    out
+}
+
+pub unsafe fn ovrMatrix4f_Multiply(a: *const ovrMatrix4f, b: *const ovrMatrix4f) -> ovrMatrix4f {
+    let mut out = mem::zeroed::<ovrMatrix4f>();
+    out.M[0][0] = (*a).M[0][0] * (*b).M[0][0]
+        + (*a).M[0][1] * (*b).M[1][0]
+        + (*a).M[0][2] * (*b).M[2][0]
+        + (*a).M[0][3] * (*b).M[3][0];
+    out.M[1][0] = (*a).M[1][0] * (*b).M[0][0]
+        + (*a).M[1][1] * (*b).M[1][0]
+        + (*a).M[1][2] * (*b).M[2][0]
+        + (*a).M[1][3] * (*b).M[3][0];
+    out.M[2][0] = (*a).M[2][0] * (*b).M[0][0]
+        + (*a).M[2][1] * (*b).M[1][0]
+        + (*a).M[2][2] * (*b).M[2][0]
+        + (*a).M[2][3] * (*b).M[3][0];
+    out.M[3][0] = (*a).M[3][0] * (*b).M[0][0]
+        + (*a).M[3][1] * (*b).M[1][0]
+        + (*a).M[3][2] * (*b).M[2][0]
+        + (*a).M[3][3] * (*b).M[3][0];
+
+    out.M[0][1] = (*a).M[0][0] * (*b).M[0][1]
+        + (*a).M[0][1] * (*b).M[1][1]
+        + (*a).M[0][2] * (*b).M[2][1]
+        + (*a).M[0][3] * (*b).M[3][1];
+    out.M[1][1] = (*a).M[1][0] * (*b).M[0][1]
+        + (*a).M[1][1] * (*b).M[1][1]
+        + (*a).M[1][2] * (*b).M[2][1]
+        + (*a).M[1][3] * (*b).M[3][1];
+    out.M[2][1] = (*a).M[2][0] * (*b).M[0][1]
+        + (*a).M[2][1] * (*b).M[1][1]
+        + (*a).M[2][2] * (*b).M[2][1]
+        + (*a).M[2][3] * (*b).M[3][1];
+    out.M[3][1] = (*a).M[3][0] * (*b).M[0][1]
+        + (*a).M[3][1] * (*b).M[1][1]
+        + (*a).M[3][2] * (*b).M[2][1]
+        + (*a).M[3][3] * (*b).M[3][1];
+
+    out.M[0][2] = (*a).M[0][0] * (*b).M[0][2]
+        + (*a).M[0][1] * (*b).M[1][2]
+        + (*a).M[0][2] * (*b).M[2][2]
+        + (*a).M[0][3] * (*b).M[3][2];
+    out.M[1][2] = (*a).M[1][0] * (*b).M[0][2]
+        + (*a).M[1][1] * (*b).M[1][2]
+        + (*a).M[1][2] * (*b).M[2][2]
+        + (*a).M[1][3] * (*b).M[3][2];
+    out.M[2][2] = (*a).M[2][0] * (*b).M[0][2]
+        + (*a).M[2][1] * (*b).M[1][2]
+        + (*a).M[2][2] * (*b).M[2][2]
+        + (*a).M[2][3] * (*b).M[3][2];
+    out.M[3][2] = (*a).M[3][0] * (*b).M[0][2]
+        + (*a).M[3][1] * (*b).M[1][2]
+        + (*a).M[3][2] * (*b).M[2][2]
+        + (*a).M[3][3] * (*b).M[3][2];
+
+    out.M[0][3] = (*a).M[0][0] * (*b).M[0][3]
+        + (*a).M[0][1] * (*b).M[1][3]
+        + (*a).M[0][2] * (*b).M[2][3]
+        + (*a).M[0][3] * (*b).M[3][3];
+    out.M[1][3] = (*a).M[1][0] * (*b).M[0][3]
+        + (*a).M[1][1] * (*b).M[1][3]
+        + (*a).M[1][2] * (*b).M[2][3]
+        + (*a).M[1][3] * (*b).M[3][3];
+    out.M[2][3] = (*a).M[2][0] * (*b).M[0][3]
+        + (*a).M[2][1] * (*b).M[1][3]
+        + (*a).M[2][2] * (*b).M[2][3]
+        + (*a).M[2][3] * (*b).M[3][3];
+    out.M[3][3] = (*a).M[3][0] * (*b).M[0][3]
+        + (*a).M[3][1] * (*b).M[1][3]
+        + (*a).M[3][2] * (*b).M[2][3]
+        + (*a).M[3][3] * (*b).M[3][3];
+    out
+}
+
 pub unsafe fn ovrMatrix4f_TanAngleMatrixFromProjection(
     projection: *const ovrMatrix4f,
 ) -> ovrMatrix4f {
@@ -189,13 +311,4 @@ pub unsafe fn ovrMatrix4f_Transpose(a: *const ovrMatrix4f) -> ovrMatrix4f {
     out.M[3][2] = (*a).M[2][3];
     out.M[3][3] = (*a).M[3][3];
     out
-}
-
-pub unsafe fn ovrMatrix4f_CreateTranslation(x: f32, y: f32, z: f32) -> ovrMatrix4f {
-	let mut out: ovrMatrix4f = mem::zeroed();
-	out.M[0][0] = 1.0; out.M[0][1] = 0.0; out.M[0][2] = 0.0; out.M[0][3] = x;
-	out.M[1][0] = 0.0; out.M[1][1] = 1.0; out.M[1][2] = 0.0; out.M[1][3] = y;
-	out.M[2][0] = 0.0; out.M[2][1] = 0.0; out.M[2][2] = 1.0; out.M[2][3] = z;
-	out.M[3][0] = 0.0; out.M[3][1] = 0.0; out.M[3][2] = 0.0; out.M[3][3] = 1.0;
-	out
 }

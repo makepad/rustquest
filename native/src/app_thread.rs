@@ -56,11 +56,13 @@ impl AppThread {
                                 app.as_mut().unwrap().set_window(ptr::null_mut());
                             }
                         },
-                        Err(TryRecvError::Empty) => {},
+                        Err(TryRecvError::Empty) => {}
                         Err(TryRecvError::Disconnected) => panic!(),
                     }
 
-                    app.as_mut().unwrap().render_frame();
+                    let app = app.as_mut().unwrap();
+                    app.handle_input();
+                    app.render_frame();
                 }
                 logi!("leaving event loop");
             })),

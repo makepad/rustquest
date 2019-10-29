@@ -7,12 +7,16 @@ use libGLESv3_sys::{
 };
 use libandroid_sys::ANativeWindow;
 use libvrapi_sys::{
+    ovrControllerType__ovrControllerType_TrackedRemote,
     ovrFrameLayerFlags__VRAPI_FRAME_LAYER_FLAG_CHROMATIC_ABERRATION_CORRECTION,
-    ovrInitializeStatus__VRAPI_INITIALIZE_SUCCESS, ovrJava, ovrMobile,
+    ovrInitializeStatus__VRAPI_INITIALIZE_SUCCESS, ovrInputCapabilityHeader, ovrJava, ovrMobile,
     ovrModeFlags__VRAPI_MODE_FLAG_NATIVE_WINDOW,
     ovrModeFlags__VRAPI_MODE_FLAG_RESET_WINDOW_FULLSCREEN, ovrSubmitFrameDescription2,
     ovrSystemProperty__VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_HEIGHT,
-    ovrSystemProperty__VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_WIDTH,
+    ovrSystemProperty__VRAPI_SYS_PROP_SUGGESTED_EYE_TEXTURE_WIDTH, ovrTracking, ovrVector3f,
+    ovrQuatf,
+    ovrInputTrackedRemoteCapabilities,
+    ovrControllerCapabilities__ovrControllerCaps_RightHand,
 };
 use std::mem;
 use std::ptr;
@@ -28,6 +32,8 @@ pub struct App {
     window: *mut ANativeWindow,
     vr: *mut ovrMobile,
     frame_index: u64,
+    position: ovrVector3f,
+    orientation: ovrQuatf,
 }
 
 impl App {
@@ -77,6 +83,17 @@ impl App {
             window: ptr::null_mut(),
             vr: ptr::null_mut(),
             frame_index: 0,
+            position: ovrVector3f {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            orientation: ovrQuatf {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                w: 1.0,
+            },
         }
     }
 
@@ -90,6 +107,46 @@ impl App {
         self.update_vr_mode();
     }
 
+    pub fn handle_input(&mut self) {
+        unsafe {
+            for index in 0.. {
+                logv!("enumerate input device {}", index);
+                let mut header = mem::zeroed::<ovrInputCapabilityHeader>();
+                if libvrapi_sys::vrapi_EnumerateInputDevices(self.vr, index, &mut header) < 0 {
+                    break;
+                }
+
+                if header.Type == ovrControllerType__ovrControllerType_TrackedRemote {
+                    logv!("found tracked remote");
+
+                    logv!("get input device capabilities");
+                    let mut capabilities = mem::zeroed::<ovrInputTrackedRemoteCapabilities>();
+                    capabilities.Header = header;
+                    libvrapi_sys::vrapi_GetInputDeviceCapabilities(self.vr, &mut capabilities.Header);
+
+                    if capabilities.ControllerCapabilities & ovrControllerCapabilities__ovrControllerCaps_RightHand != 0 {
+                        logv!("found right hand tracked remote");
+
+                        logv!("get input tracking state");
+                        let mut tracking = mem::zeroed::<ovrTracking>();
+                        if libvrapi_sys::vrapi_GetInputTrackingState(
+                            self.vr,
+                            header.DeviceID,
+                            0.0,
+                            &mut tracking,
+                        ) < 0
+                        {
+                            panic!("can't get input tracking state");
+                        }
+
+                        self.position = tracking.HeadPose.Pose.__bindgen_anon_1.Position;
+                        self.orientation = tracking.HeadPose.Pose.Orientation;
+                    }
+                }
+            }
+        }
+    }
+
     pub fn render_frame(&mut self) {
         unsafe {
             if self.vr.is_null() {
@@ -98,7 +155,14 @@ impl App {
 
             self.frame_index += 1;
 
-            let mut model_matrix = libvrapi_sys::ovrMatrix4f_CreateTranslation(0.0, 0.0, -1.0);
+            let translation = libvrapi_sys::ovrMatrix4f_CreateTranslation(
+                self.position.x,
+                self.position.y,
+                self.position.z,
+            );
+            let rotation = libvrapi_sys::ovrMatrix4f_CreateFromQuaternion(&self.orientation);
+            let mut model_matrix = rotation;
+            model_matrix = libvrapi_sys::ovrMatrix4f_Multiply(&translation, &model_matrix);
             model_matrix = libvrapi_sys::ovrMatrix4f_Transpose(&model_matrix);
 
             logv!("get predicted display time");
@@ -139,14 +203,16 @@ impl App {
                     GL_FALSE as GLboolean,
                     model_matrix.M.as_ptr() as *const _,
                 );
-                let view_matrix = libvrapi_sys::ovrMatrix4f_Transpose(&tracking.Eye[index].ViewMatrix);
+                let view_matrix =
+                    libvrapi_sys::ovrMatrix4f_Transpose(&tracking.Eye[index].ViewMatrix);
                 libGLESv3_sys::glUniformMatrix4fv(
                     self.program.uniform_location("uViewMatrix"),
                     1,
                     GL_FALSE as GLboolean,
                     view_matrix.M.as_ptr() as *const _,
                 );
-                let projection_matrix = libvrapi_sys::ovrMatrix4f_Transpose(&tracking.Eye[index].ProjectionMatrix);
+                let projection_matrix =
+                    libvrapi_sys::ovrMatrix4f_Transpose(&tracking.Eye[index].ProjectionMatrix);
                 libGLESv3_sys::glUniformMatrix4fv(
                     self.program.uniform_location("uProjectionMatrix"),
                     1,

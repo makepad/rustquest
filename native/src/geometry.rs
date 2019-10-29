@@ -1,5 +1,5 @@
 use libGLESv3_sys::{
-    GLboolean, GLenum, GLint, GLsizei, GLsizeiptr, GLushort, GLuint, GLvoid, GL_ARRAY_BUFFER,
+    GLboolean, GLenum, GLint, GLsizei, GLsizeiptr, GLuint, GLushort, GLvoid, GL_ARRAY_BUFFER,
     GL_ELEMENT_ARRAY_BUFFER, GL_FALSE, GL_FLOAT, GL_STATIC_DRAW,
 };
 use std::mem;
