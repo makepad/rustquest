@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.makepad.rustquest">
+    <meta-data android:name="com.samsung.android.vr.application.mode" android:value="vr_only"/>
+
     <application android:label="rustquest">
         <activity android:name="MainActivity">
             <intent-filter>
